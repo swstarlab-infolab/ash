@@ -30,4 +30,15 @@ void dbg_message(char const* prefix, char const* file, int const line, char cons
     printf("%s\n", buffer);
 }
 
+void dbg_println(char const* format, ...) {
+    static char buffer[2048];
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> guard(mtx);
+    va_list ap;
+    va_start(ap, format);
+    vsnprintf(buffer, 2048, format, ap);
+    va_end(ap);
+    printf("%s\n", buffer);
+}
+
 } // namespace ash
