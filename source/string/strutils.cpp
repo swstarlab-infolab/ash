@@ -55,4 +55,9 @@ std::string dirname_copy(std::string const& s, char separator) {
     return s2;
 }
 
+char const* basename(char const* path, char const separator) {
+    char const* s = strrchr(path, separator);
+    return (s == nullptr) ? path : ++s;
+}
+
 } // !namespace ash
