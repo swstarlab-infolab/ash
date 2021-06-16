@@ -60,4 +60,61 @@ char const* basename(char const* path, char const separator) {
     return (s == nullptr) ? path : ++s;
 }
 
+char* replace_character(char* s, char const find, char const replace) {
+    size_t const len = strlen(s);
+    for (size_t i = 0; i < len; ++i) {
+        if (s[i] == find)
+            s[i] = replace;
+    }
+    return s;
+}
+
+void ltrim(std::string& s, char const c) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [c](char ch) {
+        return !(ch == c);
+        }));
+}
+
+void rtrim(std::string& s, char const c) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [c](char ch) {
+        return !(c == ch);
+        }).base(), s.end());
+}
+
+void trim(std::string& s, char c) {
+    ltrim(s, c);
+    rtrim(s, c);
+}
+
+std::string ltrim_copy(std::string s, char c) {
+    ltrim(s, c);
+    return s;
+}
+
+std::string rtrim_copy(std::string s, char c) {
+    rtrim(s, c);
+    return s;
+}
+
+std::string trim_copy(std::string s, char c) {
+    trim(s, c);
+    return s;
+}
+
+char* trim_path(char* path, char const separator) {
+    char* pos = strrchr(path, separator);
+    if (pos == (path + (strlen(path) - 1)))
+        *pos = 0;
+    return path;
+}
+
+void trim_path(std::string& path, char const separator) {
+    rtrim(path, separator);
+}
+
+std::string trim_path_copy(std::string path, char const separator) {
+    trim_path(path, separator);
+    return path;
+}
+
 } // !namespace ash
