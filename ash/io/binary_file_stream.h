@@ -33,6 +33,19 @@ public:
     virtual uint64_t     get_file_size() const noexcept = 0;
 };
 
+#if defined(ASH_ENV_WINDOWS)
+class direct_binary_file_stream_win32;
+binary_file_stream* make_direct_fstream(binary_file_stream::configure_t const& cfg);
+#elif defined(ASH_ENV_UNIX)
+class direct_binary_file_stream_posix;
+binary_file_stream* make_direct_fstream(binary_file_stream::configure_t const& cfg);
+#endif
+
+void release_direct_fstream(binary_file_stream* s);
+
+class binary_file_stream_cxxstd;
+binary_file_stream* make_fstream();
+
 } // namespace ash
 
 #endif // ASH_IO_DIRECT_STREAM_H
