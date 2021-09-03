@@ -1,3 +1,53 @@
+#include <ash/memory/buddy_system.h>
+#include <ash/pointer.h>
+#include <assert.h>
+#include <string.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
+namespace ash {
+
+buddy_system::buddy_system() {
+    memset(&_rgn, 0, sizeof _rgn);
+    _align = 0;
+    _max_blk_size = 0;
+    _flist_v = nullptr;
+    _total_allocated_size = 0;
+    memset(&_status, 0, sizeof(buddy_impl::buddy_system_status));
+}
+
+buddy_system::~buddy_system() {
+    _cleanup();
+}
+
+buddy_system::buddy_system(memrgn_t const& rgn, unsigned const align, unsigned const min_cof) :
+    buddy_system() {
+    init(rgn, align, min_cof);
+}
+
+void buddy_system::init(memrgn_t const& rgn, unsigned const align, unsigned const min_cof) {
+    //TODO: badalloc handling
+    using namespace buddy_impl;
+    assert(ash::is_aligned_address(_rgn.ptr, align));
+    cof_type const root_cof = static_cast<cof_type>(rgn.size / align);
+    _rgn = rgn;
+    _align = align;
+    _max_blk_size = root_cof * align;
+    _tbl.init(root_cof, align, min_cof);
+    auto block = _block_pool.malloc();
+    block->cof = root_cof;
+    block->blkidx = 0;
+    block->rgn = _rgn;
+    block->pair = nullptr;
+    block->parent = nullptr;
+    block->in_use = false;
+    _flist_v = _init_free_list_vec(_tbl.size(), _node_pool);
+    _flist_v[0].emplace_front(block);
+    _route.reserve(_tbl.max_level());
+    _total_allocated_size = 0;
+    fprintf(stdout, "Buddy system is online. [%p, %" PRIu64 "]\n", rgn.ptr, rgn.size);
+}
+
 /*
  * * Root: 200
  * Minimum coefficient: 3
@@ -113,3 +163,5 @@
  *                          |                        +-- here (request: 3, result 3)
  *
  */
+
+} // !namespace ash
