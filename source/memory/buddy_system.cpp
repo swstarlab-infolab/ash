@@ -48,6 +48,100 @@ void buddy_system::init(memrgn_t const& rgn, unsigned const align, unsigned cons
     fprintf(stdout, "Buddy system is online. [%p, %" PRIu64 "]\n", rgn.ptr, rgn.size);
 }
 
+void* buddy_system::allocate(uint64_t size) {
+    using namespace buddy_impl;
+    size += sizeof(buddy_block**);
+    buddy_block* block = allocate_block(size);
+    if (block == nullptr)
+        return nullptr;
+
+    auto const p = static_cast<buddy_block**>(block->rgn.ptr);
+    *p = block;
+    return p + 1;
+}
+
+void buddy_system::deallocate(void* p) {
+    if (p == nullptr)
+        return;
+    deallocate_block(*(static_cast<buddy_block**>(p) - 1));
+}
+
+buddy_system::buddy_block* buddy_system::allocate_block(uint64_t const size) {
+    using namespace buddy_impl;
+    if (ASH_UNLIKELY(size > _max_blk_size))
+        return nullptr;
+
+    assert(_route.empty());
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+    assert(_route_dbg.empty());
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+    blkidx_t bf = _tbl.best_fit(size);
+    auto const result = _create_route(bf);
+    if (!result.success) {
+        _route.clear();
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+        _route_dbg.clear();
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+        return nullptr; // bad alloc
+    }
+
+    assert(!_route.empty());
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+    assert(_route.size() == _route_dbg.size());
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+    assert(!_flist_v[result.blkidx].empty());
+    auto begin = _flist_v[result.blkidx].begin();
+    buddy_block* block = *begin;
+    _flist_v[result.blkidx].remove_node(begin);
+
+    _route.pop();
+    blkidx_t idx_dbg = result.blkidx;
+    buddy_block* child[2];
+    while (!_route.empty()) {
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+        assert(idx_dbg == _route_dbg.peek());
+        _route_dbg.pop();
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+        child[0] = _block_pool.malloc();
+        child[1] = _block_pool.malloc();
+        _split_block(block, child[0], child[1], _tbl);
+        block->in_use = true;
+        buddy_block*& target = child[_route.peek()];
+        buddy_block*& spare = child[!_route.peek()];
+        assert(_flist_v[target->blkidx].empty());
+        _ash_unused(idx_dbg);
+        idx_dbg = target->blkidx;
+        spare->inv = _flist_v[spare->blkidx].emplace_front(spare).node();
+
+        // update states
+        block = target;
+        _route.pop();
+    }
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+    _route_dbg.pop();
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+
+    assert(block->in_use == false);
+
+    block->in_use = true;
+    block->inv = nullptr;
+    _status.total_allocated += 1;
+
+    assert(_route.empty());
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+    assert(_route_dbg.empty());
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+
+    assert(size <= (uint64_t)(block->cof * _align));
+    _total_allocated_size += block->cof * _align;
+    return block;
+}
+
+void buddy_system::deallocate_block(buddy_block* blk) {
+    _total_allocated_size -= blk->cof * _align;
+    _deallocate(blk);
+}
+
 /*
  * * Root: 200
  * Minimum coefficient: 3
