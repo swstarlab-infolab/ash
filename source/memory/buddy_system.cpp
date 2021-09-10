@@ -141,6 +141,59 @@ void buddy_system::deallocate_block(buddy_block* blk) {
     _total_allocated_size -= blk->cof * _align;
     _deallocate(blk);
 }
+void buddy_system::_cleanup_free_list_vec(unsigned const size, buddy_impl::free_list_t* v) {
+    using namespace buddy_impl;
+    for (unsigned i = 0; i < size; ++i) {
+        assert(i == 0 || v[i].empty());
+        v[i].~free_list_t();
+    }
+    delete v;
+}
+
+void buddy_system::_split_block(buddy_block* parent, buddy_block* left, buddy_block* right, buddy_impl::buddy_table const& tbl) {
+    using namespace buddy_impl;
+    assert(parent->in_use == false);
+
+    auto const left_block_index = [&tbl](buddy_block const* parent) -> blkidx_t {
+        auto const prop = tbl.property(parent->blkidx);
+        blkidx_t const parent_lv_base = parent->blkidx - prop.offset;
+        if (prop.check(UniqueBuddyBlock))
+            return parent_lv_base + 1;
+        if (parent->cof & 0x1u)
+            return parent_lv_base + 2;
+        return parent_lv_base + 2 + (prop.offset != 0);
+    };
+
+    auto const right_block_index = [&tbl](buddy_block const* parent) -> blkidx_t {
+        auto const prop = tbl.property(parent->blkidx);
+        blkidx_t const parent_lv_base = parent->blkidx - prop.offset;
+        if (prop.check(UniqueBuddyBlock))
+            return parent_lv_base + 1 + (parent->cof & 0x1u);
+        if (parent->cof & 0x1u)
+            return parent_lv_base + 3;
+        return parent_lv_base + 2 + (prop.offset != 0);
+    };
+
+    // left
+    left->cof = parent->cof / 2 + parent->cof % 2;
+    left->rgn.ptr = parent->rgn.ptr;
+    left->rgn.size = tbl.align() * left->cof;
+    left->pair = right;
+    left->parent = parent;
+    left->in_use = false;
+    left->inv = nullptr;
+    left->blkidx = left_block_index(parent);
+
+    // right
+    right->cof = parent->cof - left->cof;
+    right->rgn.ptr = seek_pointer(parent->rgn.ptr, left->rgn.size);
+    right->rgn.size = parent->rgn.size - left->rgn.size;
+    right->pair = left;
+    right->parent = parent;
+    right->in_use = false;
+    right->inv = nullptr;
+    right->blkidx = right_block_index(parent);
+}
 
 /*
  * * Root: 200
