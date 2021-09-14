@@ -195,6 +195,22 @@ void buddy_system::_split_block(buddy_block* parent, buddy_block* left, buddy_bl
     right->blkidx = right_block_index(parent);
 }
 
+void buddy_system::_deallocate(buddy_block* block) {
+    assert(block->in_use == true);
+    block->in_use = false;
+    buddy_block* pair = block->pair;
+    if (block->pair == nullptr || pair->in_use) {
+        block->inv = _flist_v[block->blkidx].emplace_back(block).node();
+        return;
+    }
+    buddy_block* parent = block->parent;
+    _flist_v[pair->blkidx].remove_node(pair->inv);
+    _block_pool.free(block);
+    _block_pool.free(pair);
+    _deallocate(parent);
+    _status.total_deallocated += 1;
+}
+
 /*
  * * Root: 200
  * Minimum coefficient: 3
