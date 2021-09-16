@@ -211,6 +211,28 @@ void buddy_system::_deallocate(buddy_block* block) {
     _status.total_deallocated += 1;
 }
 
+void buddy_system::_cleanup() {
+    //TODO: Implementation
+    if (_flist_v == nullptr)
+        return; // system is not initialized yet.
+    if (_flist_v[0].empty()) {
+        fprintf(stderr, "Buddy system detects memory leak!\n");
+    }
+    _cleanup_free_list_vec(_tbl.size(), _flist_v);
+    _tbl.clear();
+}
+
+buddy_system::buddy_block* buddy_system::_acquire_block(buddy_impl::blkidx_t const bidx) const {
+    using namespace buddy_impl;
+    free_list_t& list = _flist_v[bidx];
+    if (list.empty())
+        return nullptr;
+    auto begin = list.begin();
+    buddy_block* block = *begin;
+    _flist_v[bidx].remove_node(begin);
+    return block;
+}
+
 /*
  * * Root: 200
  * Minimum coefficient: 3
