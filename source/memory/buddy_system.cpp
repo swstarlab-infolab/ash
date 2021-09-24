@@ -349,4 +349,88 @@ buddy_system::buddy_block* buddy_system::_acquire_block(buddy_impl::blkidx_t con
  *
  */
 
+buddy_system::routing_result buddy_system::_create_route(buddy_impl::blkidx_t bidx) {
+    using namespace buddy_impl;
+    auto const append_idx_to_route_if_cached = [this](blkidx_t const idx) -> bool {
+        auto const prop = _tbl.property(idx);
+        if (!_flist_v[idx].empty()) {
+            _route.push(prop.offset);
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+            _route_dbg.push(idx);
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+            return true;
+        }
+        return false;
+    };
+
+#ifdef ASH_BUDDY_SYSTEM_PREVENT_ROOT_ALLOC
+    // Terminate if the target block is a root node
+    if (ASH_UNLIKELY(blkidx == 0))
+        return routing_result{ false, 0 }; // bad alloc
+#endif
+
+    // Lookup caches of requested block index
+    if (append_idx_to_route_if_cached(bidx))
+        return routing_result{ true, bidx };
+
+    // If the requested block is R-A3B1,
+    // restart the routine to allocate a neighbor block
+    auto prop = _tbl.property(bidx);
+    if (prop.check(RareBuddyBlock | A3B1Pattern))
+        return _create_route(bidx - 1);
+
+    // Append a current index to the route
+    _route.push(prop.offset);
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+    _route_dbg.push(bidx);
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+
+    // If the requested block is R-A1B3,
+    // restart the routine to allocate its parent block
+    if (prop.check(RareBuddyBlock | A1B3Pattern))
+        return _create_route(bidx - prop.dist);
+
+    do {
+        // Move the index to the beginning of the previous level
+        bidx -= prop.dist;
+        prop = _tbl.property(bidx);
+        if (prop.check(UniqueBuddyBlock)) {
+            if (append_idx_to_route_if_cached(bidx))
+                return routing_result{ true, bidx };
+            // Append the current index to the route (Unique: 0)
+            _route.push(0);
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+            _route_dbg.push(bidx);
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+        }
+        else if (prop.check(A1B3Pattern)) {
+            if (append_idx_to_route_if_cached(bidx))
+                return routing_result{ true, bidx };
+            if (append_idx_to_route_if_cached(bidx + 1))
+                return routing_result{ true, bidx + 1 };
+            // Append the frequent block index to the route (A1B3 => Offset of B: 1)
+            _route.push(1);
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+            _route_dbg.push(bidx + 1);
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+        }
+        else if (prop.check(A3B1Pattern)) {
+            if (append_idx_to_route_if_cached(bidx + 1))
+                return routing_result{ true, bidx + 1 };
+            if (append_idx_to_route_if_cached(bidx))
+                return routing_result{ true, bidx };
+            // Append the frequent block index to the route (A3B1 => Offset of A: 0)
+            _route.push(0);
+#ifdef ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+            _route_dbg.push(bidx);
+#endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
+        }
+    } while (bidx > 0);
+
+    if (append_idx_to_route_if_cached(0))
+        return routing_result{ true, 0 };
+
+    return routing_result{ false, bidx };
+}
+
 } // !namespace ash
