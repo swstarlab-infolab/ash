@@ -1,6 +1,6 @@
 #include <ash/bitstack.h>
 #include <ash/bitset.h>
-#include <ash/size.h>
+#include <ash/numeric.h>
 #include <assert.h>
 #include <stdlib.h>
 

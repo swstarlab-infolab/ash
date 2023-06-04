@@ -7,7 +7,7 @@
 namespace ash {
 
 template <typename FTy>
-class worker_pool : noncopyable {
+class worker_pool: noncopyable {
 public:
     using worker_t = worker_thread<FTy>;
     worker_pool(size_t reserved = 1);

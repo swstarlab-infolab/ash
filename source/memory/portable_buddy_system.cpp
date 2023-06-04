@@ -11,6 +11,7 @@ void portable_buddy_system::init(memrgn_t const& rgn, unsigned align, unsigned m
 }
 
 void* portable_buddy_system::allocate(uint64_t size) {
+    assert(size > 0);
     using namespace buddy_impl;
     buddy_block* block = buddy.allocate_block(size);
     if (block == nullptr)
@@ -22,6 +23,8 @@ void* portable_buddy_system::allocate(uint64_t size) {
 }
 
 void portable_buddy_system::deallocate(void* p) {
+    if (p == nullptr)
+        return;
     using namespace buddy_impl;
     assert(hashmap.find(p) != hashmap.end());
     buddy_block* block = hashmap.at(p);

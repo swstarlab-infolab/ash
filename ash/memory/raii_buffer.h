@@ -15,11 +15,6 @@ struct aligned_deleter {
     void operator()(void* m) const { aligned_free(m); }
 };
 
-template <typename T>
-struct objarr_deleter {
-    void operator()(T* m) const { delete[] m; }
-};
-
 } // namespace detail
 
 template <typename T>
@@ -29,7 +24,10 @@ template <typename T>
 using aligned_raii_buffer = std::unique_ptr<T, detail::aligned_deleter>;
 
 template <typename T>
-using objarr_raii_buffer = std::unique_ptr<T, detail::objarr_deleter<T> >;
+using raii_array = std::unique_ptr<T[]>;
+
+template <typename T>
+using raii_object = std::unique_ptr<T>;
 
 template <typename T>
 raii_buffer<T> make_raii_buffer(size_t const size) noexcept {
@@ -42,8 +40,13 @@ raii_buffer<T> make_aligned_raii_buffer(size_t const size, unsigned const align)
 }
 
 template <typename T>
-objarr_raii_buffer<T> make_objarr_raii_buffer(size_t const count) noexcept {
-    return objarr_raii_buffer<T>{ new(std::nothrow) T[count] };
+raii_array<T> make_raii_array(size_t const count) noexcept {
+    return raii_array<T>{ new(std::nothrow) T[count] };
+}
+
+template <typename T>
+raii_object<T> make_raii_object() noexcept {
+    return raii_object<T>{ new(std::nothrow) T };
 }
 
 } // namespace ash

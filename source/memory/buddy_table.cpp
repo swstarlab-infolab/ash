@@ -1,12 +1,15 @@
 #include <ash/memory/buddy_table.h>
-#include <ash/size.h>
+#include <ash/numeric.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
 #include <limits>
+#include <iterator>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <inttypes.h>
 
 namespace ash {
 namespace buddy_impl {
@@ -98,11 +101,11 @@ buddy_table::buddy_table() {
     _min_cof = 0;
     _tbl_size = 0;
     _buddy_lv = 0;
-    memset(&_attr, 0, sizeof _attr);
+    memset(&_properties, 0, sizeof _properties);
 }
 
 buddy_table::~buddy_table() noexcept {
-    _free_attr(&_attr);
+    _free_properties(&_properties);
 }
 
 buddy_table::buddy_table(cof_type const root_cof, unsigned const align, cof_type const min_cof) :
@@ -118,97 +121,125 @@ void buddy_table::init(cof_type const root_cof, unsigned const align, cof_type c
     _min_cof = min_cof;
     _tbl_size = info.tbl_size;
     _buddy_lv = info.buddy_lv;
-    _attr = _init_attr(_tbl_size, root_cof, align, min_cof);
+    _properties = _init_properties(_tbl_size, root_cof, align, min_cof);
     //TODO: Add exception handling when initialization fails (11/05/2019)
 }
 
 void buddy_table::clear() noexcept {
-    _free_attr(&_attr);
+    _free_properties(&_properties);
     _align = 0;
     _min_cof = 0;
     _tbl_size = 0;
     _buddy_lv = 0;
-    memset(&_attr, 0, sizeof _attr);
+    memset(&_properties, 0, sizeof _properties);
 }
 
 void buddy_table::printout() const {
     for (level_t i = 0; i < _tbl_size; ++i) {
         printf("%4u | %4u | %" PRId64 "\n",
-            i, _attr.level_v[i], _attr.cof_v[i]
+            i, _properties.level_v[i], _properties.cof_v[i]
         );
     }
 }
 
 blkidx_t buddy_table::best_fit(uint64_t const block_size) const {
-    assert(block_size <= static_cast<uint64_t>(_attr.cof_v[0] * _align));
+    assert(block_size <= static_cast<uint64_t>(_properties.cof_v[0] * _align));
     assert(_tbl_size > 0);
-    cof_type const cof = static_cast<cof_type>((block_size + _align - 1) / _align);
+    cof_type const find_cof = static_cast<cof_type>((block_size + _align - 1) / _align);
 
-    for (unsigned i = _tbl_size - 1; i > 0; --i) {
-        if (_attr.cof_v[i] >= cof) {
-            assert(block_size <= static_cast<uint64_t>(_attr.cof_v[i] * _align));
+#if 1
+    // Reverse lower_bound
+    cof_type const* it;
+    unsigned count, step;
+    count = _tbl_size;
+
+    cof_type const* first = &_properties.cof_v[_tbl_size - 1];
+
+    while (count > 0) {
+        it = first;
+        step = count / 2;
+        it -= step;
+        if (*it < find_cof) {
+            first = --it;
+            count -= step + 1;
+        }
+        else
+            count = step;
+    }
+    assert(block_size <= static_cast<uint64_t>(*first * _align));
+    return static_cast<blkidx_t>(std::distance(const_cast<cof_type const*>(_properties.cof_v), first));
+#endif
+
+#if 0
+    // Linear search v2
+    for (blkidx_t i = _tbl_size - 1; i > 0; --i) {
+        if (_properties.cof_v[i] >= find_cof) {
+            assert(block_size <= static_cast<uint64_t>(_properties.cof_v[i] * _align));
             return i;
         }
     }
     return 0;
+#endif
 
-    /*cof_type diff1 = std::numeric_limits<cof_type>::max();
+#if 0
+    cof_type diff1 = std::numeric_limits<cof_type>::max();
     blkidx_t i = _tbl_size;
     do {
-        cof_type const diff2 = std::abs(_attr.cof_v[i - 1] - cof);
+        cof_type const diff2 = std::abs(_prop.cof_v[i - 1] - cof);
         if (diff2 > diff1)
             return i;
         diff1 = diff2;
         i -= 1;
     } while (i > 0);
-    return i;*/
+    return i;
+#endif
 }
 
-void buddy_table::_free_attr(tbl_attr* attr) {
+void buddy_table::_free_properties(tbl_properties* attr) {
     free(attr->level_v);
     free(attr->cof_v);
     free(attr->prof_v);
-    memset(attr, 0, sizeof(tbl_attr));
+    memset(attr, 0, sizeof(tbl_properties));
 }
 
-buddy_table::tbl_attr buddy_table::_init_attr(
+buddy_table::tbl_properties buddy_table::_init_properties(
     unsigned const tbl_size,
     cof_type const root,
-    unsigned const align,
-    cof_type const min_cof) {
+    [[maybe_unused]] unsigned const align,
+    [[maybe_unused]] cof_type const min_cof) {
     assert(align % 2 == 0);
     assert(min_cof > 0);
     assert(root > 0);
 
     cof_type n = root;
-    tbl_attr attr;
-    memset(&attr, 0, sizeof attr);
-    attr.level_v = static_cast<level_t*>(calloc(tbl_size, sizeof(level_t)));
-    if (attr.level_v == nullptr)
+    tbl_properties prop;
+    memset(&prop, 0, sizeof prop);
+    prop.level_v = static_cast<level_t*>(calloc(tbl_size, sizeof(level_t)));
+    if (prop.level_v == nullptr)
         goto lb_err;
-    attr.cof_v = static_cast<cof_type*>(calloc(tbl_size, sizeof(cof_type)));
-    if (attr.cof_v == nullptr)
+    prop.cof_v = static_cast<cof_type*>(calloc(tbl_size, sizeof(cof_type)));
+    if (prop.cof_v == nullptr)
         goto lb_err;
-    attr.prof_v = static_cast<blk_prop_t*>(calloc(tbl_size, sizeof(uint8_t)));
-    if (attr.prof_v == nullptr)
+    prop.prof_v = static_cast<blk_prop_t*>(calloc(tbl_size, sizeof(uint8_t)));
+    if (prop.prof_v == nullptr)
         goto lb_err;
 
     // root
-    attr.level_v[0] = 0;
-    attr.cof_v[0] = n;
-    attr.prof_v[0].flags |= UniqueBuddyBlock;
-    attr.prof_v[0].dist = 0;
-    attr.prof_v[0].offset = 0;
+    prop.level_v[0] = 0;
+    prop.cof_v[0] = n;
+    prop.prof_v[0].flags |= UniqueBuddyBlock;
+    prop.prof_v[0].dist = 0;
+    prop.prof_v[0].offset = 0;
 
     do {
         // linear
         blkidx_t i = 1;
         while (i < tbl_size && !(n & 0x1u)) {
-            attr.level_v[i] = i;
-            attr.cof_v[i] = n / 2;
-            attr.prof_v[i].flags |= UniqueBuddyBlock;
-            attr.prof_v[i].dist = 1;
-            attr.prof_v[i].offset = 0;
+            prop.level_v[i] = i;
+            prop.cof_v[i] = n / 2;
+            prop.prof_v[i].flags |= UniqueBuddyBlock;
+            prop.prof_v[i].dist = 1;
+            prop.prof_v[i].offset = 0;
             n /= 2;
             i += 1;
         }
@@ -226,24 +257,24 @@ buddy_table::tbl_attr buddy_table::_init_attr(
             cof_type const r = n / 2;
             cof_type const l = r + 1;
             // left-side child
-            attr.level_v[i] = lv;
-            attr.cof_v[i] = l;
+            prop.level_v[i] = lv;
+            prop.cof_v[i] = l;
             // right-side child
-            attr.level_v[i + 1] = lv;
-            attr.cof_v[i + 1] = r;
+            prop.level_v[i + 1] = lv;
+            prop.cof_v[i + 1] = r;
             // spanning info
             if (a1b3_pattern) {
-                attr.prof_v[i].flags = RareBuddyBlock | A1B3Pattern;
-                attr.prof_v[i + 1].flags = FrequentBuddyBlock | A1B3Pattern;
+                prop.prof_v[i].flags = RareBuddyBlock | A1B3Pattern;
+                prop.prof_v[i + 1].flags = FrequentBuddyBlock | A1B3Pattern;
             }
             else {
-                attr.prof_v[i].flags = FrequentBuddyBlock | A3B1Pattern;
-                attr.prof_v[i + 1].flags = RareBuddyBlock | A3B1Pattern;
+                prop.prof_v[i].flags = FrequentBuddyBlock | A3B1Pattern;
+                prop.prof_v[i + 1].flags = RareBuddyBlock | A3B1Pattern;
             }
-            attr.prof_v[i].dist = 2;
-            attr.prof_v[i].offset = 0;
-            attr.prof_v[i + 1].dist = 3;
-            attr.prof_v[i + 1].offset = 1;
+            prop.prof_v[i].dist = 2;
+            prop.prof_v[i].offset = 0;
+            prop.prof_v[i + 1].dist = 3;
+            prop.prof_v[i + 1].offset = 1;
             // update states for next iteration
             a1b3_pattern = l & 0x1u;
             a1b3_pattern ? n = l : n = r;
@@ -252,18 +283,18 @@ buddy_table::tbl_attr buddy_table::_init_attr(
         }
         // fix for a first binary level
         assert(linear_size + 1 < tbl_size);
-        attr.prof_v[linear_size].dist = 1;
-        attr.prof_v[linear_size + 1].dist = 2;
-        attr.prof_v[linear_size].flags =
-            attr.prof_v[linear_size + 1].flags = RareBuddyBlock | A3B1Pattern;
+        prop.prof_v[linear_size].dist = 1;
+        prop.prof_v[linear_size + 1].dist = 2;
+        prop.prof_v[linear_size].flags =
+            prop.prof_v[linear_size + 1].flags = RareBuddyBlock | A3B1Pattern;
     } while (false);
     goto lb_return;
 
 lb_err:
-    _free_attr(&attr);
+    _free_properties(&prop);
 
 lb_return:
-    return attr;
+    return prop;
 }
 
 } // !namespace _buddy_impl

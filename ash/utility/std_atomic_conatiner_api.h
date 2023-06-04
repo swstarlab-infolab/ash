@@ -39,6 +39,21 @@ void zerofill_atomic_arr(std::atomic<T>* arr, size_t count) {
     _zerofill_atomic_arr(arr, count, std::integral_constant<bool, sizeof(T) == sizeof(std::atomic<T>)>{});
 }
 
+template<typename T>
+void atomic_update_maximum(std::atomic<T>& maximum_value, T const& value) noexcept {
+    T expected = maximum_value;
+    while (expected < value &&
+        !maximum_value.compare_exchange_weak(expected, value)) {
+    }
+}
+
+template<typename T>
+void atomic_update_minimum(std::atomic<T>& minimum_value, T const& value) noexcept {
+    T expected = minimum_value;
+    while (expected > value &&
+        !minimum_value.compare_exchange_weak(expected, value)) {
+    }
+}
+
 } // namespace ash
 #endif // ASH_UTILITY_STD_ATOMIC_CONATINER_API_H
-

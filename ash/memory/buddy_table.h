@@ -46,36 +46,36 @@ public:
     }
 
     level_t max_level() const {
-        return _attr.level_v[_tbl_size - 1];
+        return _properties.level_v[_tbl_size - 1];
     }
 
     level_t level(blkidx_t const bidx) const {
-        return _attr.level_v[bidx];
+        return _properties.level_v[bidx];
     }
 
     cof_type cof(blkidx_t const bidx) const {
-        return _attr.cof_v[bidx];
+        return _properties.cof_v[bidx];
     }
 
     blk_prop_t const& property(blkidx_t const bidx) const {
-        return _attr.prof_v[bidx];
+        return _properties.prof_v[bidx];
     }
 
 protected:
 
-    struct tbl_attr {
+    struct tbl_properties {
         level_t* level_v;
         cof_type* cof_v;
         blk_prop_t* prof_v;
     };
-    static void _free_attr(tbl_attr* attr);
-    static tbl_attr _init_attr(unsigned tbl_size, cof_type root, unsigned align, cof_type min_cof);
+    static void _free_properties(tbl_properties* attr);
+    static tbl_properties _init_properties(unsigned tbl_size, cof_type root, unsigned align, cof_type min_cof);
 
     unsigned _align;
     cof_type _min_cof;
     level_t  _tbl_size;
     level_t  _buddy_lv;
-    tbl_attr _attr;
+    tbl_properties _properties;
 };
 
 } // !namespace _buddy_impl

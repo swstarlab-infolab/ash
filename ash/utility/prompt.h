@@ -7,7 +7,7 @@ namespace ash {
 struct yesno_prompt {
     std::string text;
     bool yes = false;
-    bool no = false;
+    bool no  = false;
 
     bool operator()();
 };

@@ -1,9 +1,12 @@
 #include <ash/memory/buddy_system.h>
 #include <ash/pointer.h>
-#include <assert.h>
-#include <string.h>
+#include <ash/utility/dbg_log.h>
+
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
+
 
 namespace ash {
 
@@ -34,7 +37,7 @@ void buddy_system::init(memrgn_t const& rgn, unsigned const align, unsigned cons
     _align = align;
     _max_blk_size = root_cof * align;
     _tbl.init(root_cof, align, min_cof);
-    auto block = _block_pool.malloc();
+    auto block = _block_pool.allocate();
     block->cof = root_cof;
     block->blkidx = 0;
     block->rgn = _rgn;
@@ -45,7 +48,7 @@ void buddy_system::init(memrgn_t const& rgn, unsigned const align, unsigned cons
     _flist_v[0].emplace_front(block);
     _route.reserve(_tbl.max_level());
     _total_allocated_size = 0;
-    fprintf(stdout, "Buddy system is online. [%p, %" PRIu64 "]\n", rgn.ptr, rgn.size);
+    ASH_DMESG("Buddy system is online. [%p, %" PRIu64 "]", rgn.ptr, rgn.size);
 }
 
 void* buddy_system::allocate(uint64_t size) {
@@ -92,6 +95,7 @@ buddy_system::buddy_block* buddy_system::allocate_block(uint64_t const size) {
     assert(!_flist_v[result.blkidx].empty());
     auto begin = _flist_v[result.blkidx].begin();
     buddy_block* block = *begin;
+    assert(block != nullptr);
     _flist_v[result.blkidx].remove_node(begin);
 
     _route.pop();
@@ -102,8 +106,8 @@ buddy_system::buddy_block* buddy_system::allocate_block(uint64_t const size) {
         assert(idx_dbg == _route_dbg.peek());
         _route_dbg.pop();
 #endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
-        child[0] = _block_pool.malloc();
-        child[1] = _block_pool.malloc();
+        child[0] = _block_pool.allocate();
+        child[1] = _block_pool.allocate();
         _split_block(block, child[0], child[1], _tbl);
         block->in_use = true;
         buddy_block*& target = child[_route.peek()];
@@ -132,7 +136,7 @@ buddy_system::buddy_block* buddy_system::allocate_block(uint64_t const size) {
     assert(_route_dbg.empty());
 #endif // !ASH_DEBUG_ENABLE_BUDDY_ROUTE_CORRECTNESS_CHECKING
 
-    assert(size <= (uint64_t)(block->cof * _align));
+    assert(size <= static_cast<uint64_t>(block->cof * _align));
     _total_allocated_size += block->cof * _align;
     return block;
 }
@@ -141,6 +145,20 @@ void buddy_system::deallocate_block(buddy_block* blk) {
     _total_allocated_size -= blk->cof * _align;
     _deallocate(blk);
 }
+
+buddy_impl::free_list_t* buddy_system::_init_free_list_vec(unsigned const size, buddy_impl::free_list_t::pool_type& pool) {
+    using namespace buddy_impl;
+    free_list_t* v = static_cast<free_list_t*>(calloc(size, sizeof(free_list_t)));
+    if (v != nullptr) {
+        for (unsigned i = 0; i < size; ++i)
+            new (&v[i]) free_list_t(pool);
+    }
+    else {
+        fprintf(stderr, "Bad alloc occured during initialize a free list vector of the buddy system!\n");
+    }
+    return v;
+}
+
 void buddy_system::_cleanup_free_list_vec(unsigned const size, buddy_impl::free_list_t* v) {
     using namespace buddy_impl;
     for (unsigned i = 0; i < size; ++i) {
@@ -154,22 +172,22 @@ void buddy_system::_split_block(buddy_block* parent, buddy_block* left, buddy_bl
     using namespace buddy_impl;
     assert(parent->in_use == false);
 
-    auto const left_block_index = [&tbl](buddy_block const* parent) -> blkidx_t {
-        auto const prop = tbl.property(parent->blkidx);
-        blkidx_t const parent_lv_base = parent->blkidx - prop.offset;
+    auto const left_block_index = [&tbl](buddy_block const* parent_) -> blkidx_t {
+        auto const prop = tbl.property(parent_->blkidx);
+        blkidx_t const parent_lv_base = parent_->blkidx - prop.offset;
         if (prop.check(UniqueBuddyBlock))
             return parent_lv_base + 1;
-        if (parent->cof & 0x1u)
+        if (parent_->cof & 0x1u)
             return parent_lv_base + 2;
         return parent_lv_base + 2 + (prop.offset != 0);
     };
 
-    auto const right_block_index = [&tbl](buddy_block const* parent) -> blkidx_t {
-        auto const prop = tbl.property(parent->blkidx);
-        blkidx_t const parent_lv_base = parent->blkidx - prop.offset;
+    auto const right_block_index = [&tbl](buddy_block const* parent_) -> blkidx_t {
+        auto const prop = tbl.property(parent_->blkidx);
+        blkidx_t const parent_lv_base = parent_->blkidx - prop.offset;
         if (prop.check(UniqueBuddyBlock))
-            return parent_lv_base + 1 + (parent->cof & 0x1u);
-        if (parent->cof & 0x1u)
+            return parent_lv_base + 1 + (parent_->cof & 0x1u);
+        if (parent_->cof & 0x1u)
             return parent_lv_base + 3;
         return parent_lv_base + 2 + (prop.offset != 0);
     };
@@ -205,8 +223,8 @@ void buddy_system::_deallocate(buddy_block* block) {
     }
     buddy_block* parent = block->parent;
     _flist_v[pair->blkidx].remove_node(pair->inv);
-    _block_pool.free(block);
-    _block_pool.free(pair);
+    _block_pool.deallocate(block);
+    _block_pool.deallocate(pair);
     _deallocate(parent);
     _status.total_deallocated += 1;
 }

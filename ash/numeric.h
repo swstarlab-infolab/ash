@@ -1,5 +1,5 @@
-#ifndef ASH_SIZE_H
-#define ASH_SIZE_H
+#ifndef ASH_NUMERIC_H
+#define ASH_NUMERIC_H
 #include <ash/config.h>
 #include <type_traits>
 #include <stdint.h>
@@ -8,22 +8,22 @@
 namespace ash {
 
 template <typename T = size_t>
-ASH_FORCEINLINE constexpr T KiB(const T i) {
+ASH_FORCEINLINE constexpr T KiB(size_t const i) {
     return i << 10;
 }
 
 template <typename T = size_t>
-ASH_FORCEINLINE constexpr T MiB(const T i) {
+ASH_FORCEINLINE constexpr T MiB(size_t const i) {
     return i << 20;
 }
 
 template <typename T = size_t>
-ASH_FORCEINLINE constexpr T GiB(const size_t i) {
-    return i << 30;
+ASH_FORCEINLINE constexpr T GiB(size_t const i) {
+    return (T)(i << 30);
 }
 
 template <typename T = size_t>
-ASH_FORCEINLINE constexpr T TiB(const T i) {
+ASH_FORCEINLINE constexpr T TiB(size_t const i) {
     return i << 40;
 }
 
@@ -179,5 +179,15 @@ inline unsigned log2u_nb(unsigned v) {
     return r;
 }
 
+template <typename T>
+struct closed_interval {
+    using value_type = T;
+    value_type lo;
+    value_type hi;
+    value_type width() const {
+        return hi - lo + 1;
+    }
+};
+
 } // !namespace ash
-#endif // ASH_SIZE_H
+#endif // ASH_NUMERIC_H

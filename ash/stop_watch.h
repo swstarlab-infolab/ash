@@ -22,15 +22,18 @@ public:
     }
 
     uint64_t elapsed_us() const {
-        return std::chrono::duration_cast<microseconds>(clock::now() - _begin).count();
+        return std::chrono::duration_cast<microseconds>(_lab - _begin).count();
+        // return std::chrono::duration_cast<microseconds>(clock::now() - _begin).count();
     }
 
     uint64_t elapsed_ms() const {
-        return std::chrono::duration_cast<milliseconds>(clock::now() - _begin).count();
+        return std::chrono::duration_cast<milliseconds>(_lab - _begin).count();
+        // return std::chrono::duration_cast<milliseconds>(clock::now() - _begin).count();
     }
 
     double elapsed_sec() const {
-        return std::chrono::duration<double>(clock::now() - _begin).count();
+        return std::chrono::duration<double>(_lab - _begin).count();
+        // return std::chrono::duration<double>(clock::now() - _begin).count();
     }
 
     time_point restart() {

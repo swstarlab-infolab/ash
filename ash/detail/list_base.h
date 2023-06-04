@@ -84,7 +84,7 @@ public:
         node->prev = prev; node->next = dest;
         dest->prev = node;
         prev->next = node;
-        list._size == 1;
+        list._size += 1;
         return typename List::iterator{ node };
     }
 

@@ -4,13 +4,13 @@
 
 #include <ash/detail/malloc.h>
 #include <ash/pointer.h>
-#include <ash/size.h>
+#include <ash/numeric.h>
 #include <Windows.h>
 #include <assert.h>
 
 namespace ash {
 
-class direct_binary_file_stream_win32 final : public binary_file_stream {
+class direct_binary_file_stream_win32 final: public binary_file_stream {
 public:
     explicit direct_binary_file_stream_win32(configure_t const& cfg);
     ~direct_binary_file_stream_win32() noexcept override;
@@ -71,8 +71,8 @@ bool direct_binary_file_stream_win32::open(std::string path) {
 
     {
         DWORD       high32 = 0;
-        DWORD const low32 = GetFileSize(_fd, &high32);
-        _file_size = high32;
+        DWORD const low32  = GetFileSize(_fd, &high32);
+        _file_size         = high32;
         _file_size <<= 32;
         _file_size |= low32;
     }
@@ -166,7 +166,7 @@ uint64_t direct_binary_file_stream_win32::get_file_size() const noexcept {
 
 int64_t direct_binary_file_stream_win32::pread64(
     HANDLE         fd,
-    void* buf,
+    void*          buf,
     uint64_t const count,
     uint64_t const offset) {
     assert(is_aligned_address(buf, DiskSectorSize));

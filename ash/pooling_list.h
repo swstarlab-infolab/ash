@@ -2,12 +2,12 @@
 #define _ASH_POOLING_LIST_H_
 #include <ash/detail/list_base.h>
 #include <ash/detail/noncopyable.h>
-#include <boost/pool/object_pool.hpp>
+#include <ash/memory/unordered_object_pool.h>
 
 namespace ash {
 
 template <typename T, size_t ClusterSize = 256>
-using list_node_pool_trait = boost::object_pool< list_impl::list_node<T>>;
+using list_node_pool_trait = ash::unordered_object_pool< list_impl::list_node<T>, ClusterSize >;
 
 /* class pooling_list */
 
@@ -137,12 +137,12 @@ void pooling_list<T, PoolTy>::clear() {
 
 template <typename T, typename PoolTy>
 typename pooling_list<T, PoolTy>::node_type* pooling_list<T, PoolTy>::_allocate_node() {
-    return _pool.malloc();
+    return _pool.allocate();
 }
 
 template <typename T, typename PoolTy>
 void pooling_list<T, PoolTy>::_deallocate_node(node_type* node) {
-    _pool.free(node);
+    _pool.deallocate(node);
 }
 
 /* class private_pooling_list */
@@ -186,7 +186,7 @@ private:
     node_type* _head;
     node_type* _tail;
     size_t _size;
-    boost::object_pool<node_type, alproxy_t> _pool;
+    ash::unordered_object_pool<node_type, ClusterSize, alproxy_t> _pool;
     node_type* _allocate_node();
     void _deallocate_node(node_type* node) noexcept;
 

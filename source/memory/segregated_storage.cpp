@@ -4,7 +4,7 @@
 
 namespace ash {
 
-segregated_storage::segregated_storage(void* preallocated, size_t bufsize_, size_t block_size_) :
+segregated_storage::segregated_storage(void* preallocated, size_t bufsize_, size_t block_size_):
     buffer(preallocated), bufsize(bufsize_), block_size(block_size_),
     capacity(bufsize / block_size) {
     reset();

@@ -4,7 +4,7 @@
 
 #include <ash/detail/malloc.h>
 #include <ash/pointer.h>
-#include <ash/size.h>
+#include <ash/numeric.h>
 #include <assert.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -52,7 +52,7 @@ direct_binary_file_stream_posix::~direct_binary_file_stream_posix() noexcept {
 bool direct_binary_file_stream_posix::open(std::string path) {
     assert(!is_open());
     _path = std::move(path);
-    _fd = open64(_path.c_str(), O_RDONLY | O_SYNC | O_DIRECT);
+    _fd = open64(_path.c_str(), O_RDONLY | O_DIRECT);
     _file_size = ::boost::filesystem::file_size(_path);
 
     if (_fd < 0)

@@ -4,6 +4,7 @@
 #include <ash/memory/buddy_table.h>
 #include <ash/pooling_list.h>
 #include <ash/bitstack.h>
+#include <string.h> // memset
 
 namespace ash {
 
@@ -69,7 +70,7 @@ protected:
     unsigned _align;
     uint64_t _max_blk_size;
     buddy_impl::free_list_t::pool_type _node_pool;
-    boost::object_pool<buddy_block> _block_pool;
+    ash::unordered_object_pool<buddy_block> _block_pool;
     buddy_impl::free_list_t* _flist_v;
     bitstack _route;
     buddy_impl::buddy_system_status _status;

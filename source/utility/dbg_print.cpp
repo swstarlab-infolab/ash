@@ -16,6 +16,7 @@ void dbg_printf(char const* format, ...) {
     vsnprintf(buffer, 2048, format, ap);
     va_end(ap);
     printf("%s\n", buffer);
+    fflush(stdout);
 }
 
 void dbg_message(char const* prefix, char const* file, int const line, char const* format, ...) {
@@ -26,8 +27,9 @@ void dbg_message(char const* prefix, char const* file, int const line, char cons
     va_start(ap, format);
     vsnprintf(buffer, 2048, format, ap);
     va_end(ap);
-    printf("%s > log from %s:%d\n", prefix, basename(file, ASH_PATH_SEPARATOR), line);
+    printf("%s > %s:%d\n", prefix, basename(file, ASH_PATH_SEPARATOR), line);
     printf("%s\n", buffer);
+    fflush(stdout);
 }
 
 void dbg_println(char const* format, ...) {
@@ -39,6 +41,27 @@ void dbg_println(char const* format, ...) {
     vsnprintf(buffer, 2048, format, ap);
     va_end(ap);
     printf("%s\n", buffer);
+    fflush(stdout);
+}
+
+char const* __ash_what(const std::exception_ptr& eptr) {
+    try {
+        if (eptr)
+            std::rethrow_exception(eptr);
+    }
+    catch (const std::exception& e) {
+        return e.what();
+    }
+    catch (const std::string& e) {
+        return e.c_str();
+    }
+    catch (const char* e) {
+        return e;
+    }
+    catch (...) {
+        return "null (unknown)";
+    }
+    return "null exception";
 }
 
 } // namespace ash

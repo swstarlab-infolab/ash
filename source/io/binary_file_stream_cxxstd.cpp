@@ -1,7 +1,7 @@
 #include <ash/io/binary_file_stream.h>
 
 #include <ash/pointer.h>
-#include <ash/size.h>
+#include <ash/numeric.h>
 #include <assert.h>
 
 #include <fstream>

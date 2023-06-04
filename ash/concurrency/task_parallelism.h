@@ -1,7 +1,7 @@
 #ifndef ASH_CONCURRENCY_TASK_PARALLELISM_H
 #define ASH_CONCURRENCY_TASK_PARALLELISM_H
 #include <ash/concurrency/worker_thread.h>
-#include <ash/size.h>
+#include <ash/numeric.h>
 #include <boost/fiber/unbuffered_channel.hpp>
 #include <stack>
 

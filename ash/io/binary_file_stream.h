@@ -28,7 +28,7 @@ public:
     virtual bool         is_open() const noexcept = 0;
     virtual bool         read(void* buf, offset_t offset, size_t size) = 0;
     virtual uint64_t     gcount() const noexcept = 0;
-    virtual char const* path() const noexcept = 0;
+    virtual char const*  path() const noexcept = 0;
     virtual error_code_t get_last_error() const noexcept = 0;
     virtual uint64_t     get_file_size() const noexcept = 0;
 };

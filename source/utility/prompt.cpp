@@ -12,11 +12,11 @@ bool yesno_prompt::operator()() {
     } while (!std::cin.fail() && c != 'y' && c != 'n');
     if (c == 'y') {
         yes = true;
-        no = false;
+        no  = false;
     }
     else {
         yes = false;
-        no = true;
+        no  = true;
     }
     return yes;
 }

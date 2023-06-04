@@ -1,7 +1,7 @@
 #ifndef ASH_MEMORY_UNORDERED_OBJECT_POOL_H
 #define ASH_MEMORY_UNORDERED_OBJECT_POOL_H
 #include <ash/memory/segregated_storage.h>
-#include <ash/size.h>
+#include <ash/numeric.h>
 #include <stack>
 #include <assert.h>
 

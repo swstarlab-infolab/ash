@@ -28,20 +28,20 @@ public:
     }
 
     void* const buffer;
-    size_t const bufsize;
-    size_t const block_size;
-    size_t const capacity;
+    uint64_t const bufsize;
+    uint64_t const block_size;
+    uint64_t const capacity;
 
 private:
     std::vector<void*> _free_list;
 };
 
 template <typename Mutex>
-class concurrent_segregated_storage final : noncopyable {
+class concurrent_segregated_storage final: noncopyable {
 public:
     using lock_type = Mutex;
 
-    concurrent_segregated_storage(void* preallocated, size_t bufsize, size_t block_size) :
+    concurrent_segregated_storage(void* preallocated, size_t bufsize, size_t block_size):
         _ss(preallocated, bufsize, block_size) {
     }
 

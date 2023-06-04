@@ -65,13 +65,13 @@ template <typename FTy>
 class worker_thread;
 
 template <typename RTy, typename ...Args>
-class worker_thread<RTy(Args...)> : noncopyable {
+class worker_thread<RTy(Args...)>: noncopyable {
 public:
     using task_t = _worker_impl::worker_task<RTy(Args...)>;
     using pkg_task_t = typename task_t::pkg_task_t;
     using callable_t = typename pkg_task_t::callable_t;
     using pkg_args_t = typename pkg_task_t::pkg_args_t;
-    using channel_t = boost::fibers::buffered_channel<task_t>;
+    using channel_t  = boost::fibers::buffered_channel<task_t>;
     using callback_t = std::function<void(worker_thread* /*worker*/, task_t* /*task*/)>;
     explicit worker_thread(size_t chan_size = DefaultChannelSize);
     ~worker_thread() noexcept;
@@ -104,7 +104,7 @@ public:
 private:
     static constexpr unsigned argc = std::tuple_size<pkg_args_t>::value;
     using sequence_t = typename mpl::sequence_generator<argc>::type;
-    using join_channel_t = boost::fibers::buffered_channel<int>;
+    using join_channel_t  = boost::fibers::buffered_channel<int>;
 
     template <typename Callable, typename ...Args2>
     bool _push(Callable&& f, Args2&& ...args);
@@ -127,7 +127,7 @@ private:
 };
 
 template <typename RTy, typename ... Args>
-worker_thread<RTy(Args...)>::worker_thread(size_t chan_size) :
+worker_thread<RTy(Args...)>::worker_thread(size_t chan_size):
     _chan(chan_size), _join_chan(4) {
     _thread = std::thread{ &worker_thread::_message_loop, this };
     _callback = nullptr;
@@ -142,7 +142,7 @@ worker_thread<RTy(Args...)>::~worker_thread() noexcept {
 
 template <typename RTy, typename ... Args>
 void worker_thread<RTy(Args...)>::close() {
-
+    
     try {
         _chan.close();
         _thread.join();
@@ -264,7 +264,7 @@ bool worker_thread<RTy(Args...)>::_push(task_t&& task) {
     if (ASH_LIKELY(_chan.push(std::move(task)) == channel_op_status::success))
         return true;
     return false;
-
+    
 }
 
 template <typename RTy, typename ... Args>

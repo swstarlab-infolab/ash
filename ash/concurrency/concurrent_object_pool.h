@@ -8,32 +8,32 @@ namespace ash {
 template <typename T,
     typename Mutex = std::mutex,
     typename UserAllocator = boost::default_user_allocator_new_delete >
-    class concurrent_object_pool {
-    public:
-        T* malloc() {
-            std::lock_guard<Mutex> g(_m);
-            return _pool.malloc();
-        }
+class concurrent_object_pool {
+public:
+    T* malloc() {
+        std::lock_guard<Mutex> g(_m);
+        return _pool.malloc();
+    }
 
-        void free(T* p) {
-            std::lock_guard<Mutex> g(_m);
-            _pool.free(p);
-        }
+    void free(T* p) {
+        std::lock_guard<Mutex> g(_m);
+        _pool.free(p);
+    }
 
-        template <typename ...Args>
-        T* construct(Args&& ...args) {
-            std::lock_guard<Mutex> g(_m);
-            return _pool.construct(std::forward<Args>(args)...);
-        }
+    template <typename ...Args>
+    T* construct(Args&& ...args) {
+        std::lock_guard<Mutex> g(_m);
+        return _pool.construct(std::forward<Args>(args)...);
+    }
 
-        void destroy(T* p) {
-            std::lock_guard<Mutex> g(_m);
-            _pool.destroy(p);
-        }
+    void destroy(T* p) {
+        std::lock_guard<Mutex> g(_m);
+        _pool.destroy(p);
+    }
 
-    private:
-        Mutex _m;
-        boost::object_pool<T, UserAllocator> _pool;
+private:
+    Mutex _m;
+    boost::object_pool<T, UserAllocator> _pool;
 };
 
 template <typename T,
@@ -41,31 +41,31 @@ template <typename T,
     typename Mutex = std::mutex,
     typename UserAllocator = boost::default_user_allocator_new_delete >
     class concurrent_unordered_object_pool {
-    public:
-        T* malloc() {
-            std::lock_guard<Mutex> g(_m);
-            return _pool.allocate();
-        }
+public:
+    T* malloc() {
+        std::lock_guard<Mutex> g(_m);
+        return _pool.allocate();
+    }
 
-        void free(T* p) {
-            std::lock_guard<Mutex> g(_m);
-            _pool.deallocate(p);
-        }
+    void free(T* p) {
+        std::lock_guard<Mutex> g(_m);
+        _pool.deallocate(p);
+    }
 
-        template <typename ...Args>
-        T* construct(Args&& ...args) {
-            std::lock_guard<Mutex> g(_m);
-            return _pool.construct(std::forward<Args>(args)...);
-        }
+    template <typename ...Args>
+    T* construct(Args&& ...args) {
+        std::lock_guard<Mutex> g(_m);
+        return _pool.construct(std::forward<Args>(args)...);
+    }
 
-        void destroy(T* p) {
-            std::lock_guard<Mutex> g(_m);
-            _pool.destroy(p);
-        }
+    void destroy(T* p) {
+        std::lock_guard<Mutex> g(_m);
+        _pool.destroy(p);
+    }
 
-    private:
-        Mutex _m;
-        unordered_object_pool<T, ClusterSize> _pool;
+private:
+    Mutex _m;
+    unordered_object_pool<T, ClusterSize> _pool;
 };
 
 } // !namespace ash
